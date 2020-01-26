@@ -9,6 +9,12 @@ class Position {
     if (x != null) this.x = x
     if (y != null) this.y = y
   }
+
+  distance(target) {
+    let x = this.x - target.x
+    let y = this.y - target.y
+    return Math.sqrt(x * x + y * y)
+  }
 }
 
 class Character {
@@ -147,6 +153,7 @@ class Viper extends Character {
           for (i = 0; i < this.shotArray.length; ++i) {
             if (this.shotArray[i].life <= 0) {
               this.shotArray[i].set(this.position.x, this.position.y)
+              this.shotArray[i].setPower(2)
               this.shotCheckCounter = -this.shotInterval
               break
             }
@@ -235,7 +242,9 @@ class Shot extends Character {
   constructor(ctx, x, y, w, h, imagePath) {
     super(ctx, x, y, w, h, 0, imagePath)
     this.speed = 7
-    this.vector = new Position(0.0, -1.0)
+    this.power = 1
+    this.targetArray = []
+    this.explosionArray = [] 
   }
 
   set(x, y) {
@@ -249,15 +258,121 @@ class Shot extends Character {
     }
   }
 
+  setPower(power) {
+    if (power != null && power > 0) {
+      this.power = power
+    }
+  }
+
+  setTargets(targets) {
+    if (targets != null && Array.isArray(targets) === true && targets.length > 0) {
+      this.targetArray = targets
+    }
+  }
+
+  setExplosions(targets) {
+    if (targets !== null && Array.isArray(targets) === true && targets.length > 0) {
+      this.explosionArray = targets
+    }
+  }
+
   update() {
     if (this.life <= 0) return
-    if (this.position.y + this.height < 0) {
+    if (this.position.y + this.height < 0 || this.position.y - this.height > this.ctx.canvas.height) {
       this.life = 0
     }
 
     this.position.x += this.vector.x * this.speed
     this.position.y += this.vector.y * this.speed
 
+    this.targetArray.map(v => {
+      if (this.life <= 0 || v.life <= 0) return
+
+      let dist = this.position.distance(v.position)
+
+      if (dist <= (this.width + v.width) / 4) {
+        v.life -= this.power
+
+        if (v.life <= 0) {
+          for (let i = 0; i < this.explosionArray.length; ++i) {
+            if (this.explosionArray[i].life !== true) {
+              this.explosionArray[i].set(v.position.x, v.position.y)
+              break
+            }
+          }
+        }
+
+        this.life = 0
+      }
+    })
+
     this.rotationDraw()
   }
+}
+
+class Explosion {
+  constructor(ctx, radius, count, size, timeRange, color = '#ff6331') {
+    this.ctx = ctx
+    this.life = false
+    this.color = color
+    this.position = null
+    this.radius = radius
+    this.count = count
+    this.startTime = 0
+    this.timeRange = timeRange
+    this.fireBaseSize = size
+    this.fireSize = []
+    this.firePosition = []
+    this.fireVector = []
+  }
+
+  set(x, y) {
+    for (let i = 0; i < this.count; ++i) {
+      this.firePosition[i] = new Position(x, y)
+
+      let vr = Math.random() * Math.PI * 2.0
+      let s = Math.sin(vr)
+      let c = Math.cos(vr)
+      let mr = Math.random()
+
+      this.fireVector[i] = new Position(c * mr, s * mr)
+      this.fireSize[i] = (Math.random() * 0.5 + 0.5) * this.fireBaseSize
+    }
+
+    this.life = true
+    this.startTime = Date.now()
+  }
+
+  update() {
+    if (this.life !== true) return
+
+    this.ctx.fillStyle = this.color
+    this.ctx.globalAlpha = 0.5
+
+    let time = (Date.now() - this.startTime) / 1000
+    let ease = simpleEaseIn(1.0 - Math.min(time / this.timeRange, 1.0))
+    let progress = 1.0 - ease
+
+    for (let i = 0; i < this.firePosition.length; ++i) {
+      let d = this.radius * progress
+      let x = this.firePosition[i].x + this.fireVector[i].x * d
+      let y = this.firePosition[i].y + this.fireVector[i].y * d
+      let s = 1.0 - progress
+
+      this.ctx.fillRect(
+        x - this.fireSize[i] * s / 2,
+        y - this.fireSize[i] * s / 2,
+        this.fireSize[i] * s,
+        this.fireSize[i] * s,
+      )
+    }
+
+    if (progress >= 1.0) {
+      this.life = false
+    }
+  }
+}
+
+function simpleEaseIn(t) {
+  return t * t * t * t
 }

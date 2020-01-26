@@ -6,6 +6,7 @@
   const ENEMY_MAX_COUNT = 10
   const SHOT_MAX_COUNT = 10
   const ENEMY_SHOT_MAX_COUNT = 50
+  const EXPLOSION_MAX_COUNT = 10
 
   let util = null
   let canvas = null
@@ -18,6 +19,7 @@
   let shotArray = []
   let singleShotArray = []
   let enemyShotArray = []
+  let explosionArray = []
 
   window.addEventListener('load', () => {
     util = new Canvas2DUtility(document.body.querySelector('#canvas'))
@@ -36,10 +38,17 @@
 
     scene = new SceneManager()
 
+    for (i = 0; i < EXPLOSION_MAX_COUNT; ++i) {
+      explosionArray[i] = new Explosion(ctx, 100.0, 15, 40.0, 1.0)
+    }
+
     for (i = 0; i < SHOT_MAX_COUNT; ++i) {
       shotArray[i] = new Shot(ctx, 0, 0, 32, 32, './image/viper_shot.png')
       singleShotArray[i * 2] = new Shot(ctx, 0, 0, 32, 32, './image/viper_single_shot.png')
       singleShotArray[i * 2 + 1] = new Shot(ctx, 0, 0, 32, 32, './image/viper_single_shot.png')
+      shotArray[i].setExplosions(explosionArray)
+      singleShotArray[i * 2].setExplosions(explosionArray)
+      singleShotArray[i * 2 + 1].setExplosions(explosionArray)
     }
 
     viper = new Viper(ctx, 0, 0, 64, 64, './image/viper.png')
@@ -58,6 +67,12 @@
     for (i = 0; i < ENEMY_MAX_COUNT; ++i) {
       enemyArray[i] = new Enemy(ctx, 0, 0, 48, 48, './image/enemy_small.png')
       enemyArray[i].setShotArray(enemyShotArray)
+    }
+
+    for (i = 0; i < SHOT_MAX_COUNT; ++i) {
+      shotArray[i].setTargets(enemyArray)
+      singleShotArray[i * 2].setTargets(enemyArray)
+      singleShotArray[i * 2 + 1].setTargets(enemyArray)
     }
   }
 
@@ -114,7 +129,7 @@
         for (let i = 0; i < ENEMY_MAX_COUNT; ++i) {
           if (enemyArray[i].life <= 0) {
             let e = enemyArray[i]
-            e.set(CANVAS_WIDTH / 2, -e.height, 1, 'default')
+            e.set(CANVAS_WIDTH / 2, -e.height, 2, 'default')
             e.setVector(0.0, 1.0)
             break
           }
@@ -146,6 +161,9 @@
       v.update()
     })
     enemyShotArray.map(v => {
+      v.update()
+    })
+    explosionArray.map(v => {
       v.update()
     })
 
