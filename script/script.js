@@ -1,9 +1,11 @@
 (() => {
   window.isKeyDown = {}
+  window.gameScore = 0
 
   const CANVAS_WIDTH = 640
   const CANVAS_HEIGHT = 480
-  const ENEMY_MAX_COUNT = 10
+  const ENEMY_SMALL_MAX_COUNT = 20
+  const ENEMY_LARGE_MAX_COUNT = 5
   const SHOT_MAX_COUNT = 10
   const ENEMY_SHOT_MAX_COUNT = 50
   const EXPLOSION_MAX_COUNT = 10
@@ -20,6 +22,7 @@
   let singleShotArray = []
   let enemyShotArray = []
   let explosionArray = []
+  let restart = false
 
   window.addEventListener('load', () => {
     util = new Canvas2DUtility(document.body.querySelector('#canvas'))
@@ -62,11 +65,20 @@
 
     for (i = 0; i < ENEMY_SHOT_MAX_COUNT; ++i) {
       enemyShotArray[i] = new Shot(ctx, 0, 0, 32, 32, './image/enemy_shot.png')
+      enemyShotArray[i].setTargets([viper])
+      enemyShotArray[i].setExplosions(explosionArray)
     }
 
-    for (i = 0; i < ENEMY_MAX_COUNT; ++i) {
+    for (i = 0; i < ENEMY_SMALL_MAX_COUNT; ++i) {
       enemyArray[i] = new Enemy(ctx, 0, 0, 48, 48, './image/enemy_small.png')
       enemyArray[i].setShotArray(enemyShotArray)
+      enemyArray[i].setAttackTarget(viper)
+    }
+
+    for (i = 0; i < ENEMY_LARGE_MAX_COUNT; ++i) {
+      enemyArray[ENEMY_SMALL_MAX_COUNT + i] = new Enemy(ctx, 0, 0, 64, 64, './image/enemy_large.png')
+      enemyArray[ENEMY_SMALL_MAX_COUNT + i].setShotArray(enemyShotArray)
+      enemyArray[ENEMY_SMALL_MAX_COUNT + i].setAttackTarget(viper)
     }
 
     for (i = 0; i < SHOT_MAX_COUNT; ++i) {
@@ -110,6 +122,12 @@
   function eventSetting() {
     window.addEventListener('keydown', event => {
       isKeyDown[`key_${event.key}`] = true
+
+      if (event.key === 'Enter') {
+        if (viper.life <= 0) {
+          restart = true
+        }
+      }
     })
 
     window.addEventListener('keyup', event => {
@@ -119,25 +137,116 @@
 
   function sceneSetting() {
     scene.add('intro', time => {
-      if (time > 2.0) {
-        scene.use('invade')
+      if (time > 3.0) {
+        scene.use('invade_default_type')
       }
     })
 
-    scene.add('invade', time => {
-      if (scene.frame === 0) {
-        for (let i = 0; i < ENEMY_MAX_COUNT; ++i) {
+    scene.add('invade_default_type', time => {
+      if (scene.frame % 30 === 0) {
+        for (let i = 0; i < ENEMY_SMALL_MAX_COUNT; ++i) {
           if (enemyArray[i].life <= 0) {
             let e = enemyArray[i]
-            e.set(CANVAS_WIDTH / 2, -e.height, 2, 'default')
-            e.setVector(0.0, 1.0)
+
+            if (scene.frame % 60 === 0) {
+              e.set(-e.width, 30, 2, 'default')
+              e.setVectorFromAngle(degreesToRadians(30))
+            } else {
+              e.set(CANVAS_WIDTH + e.width, 30, 2, 'default')
+              e.setVectorFromAngle(degreesToRadians(150))
+            }
+
             break
           }
         }
       }
 
+      if (scene.frame === 270) {
+        scene.use('blank')
+      }
+
+      if (viper.life <= 0) {
+        scene.use('gameover')
+      }
+    })
+
+    scene.add('blank', time => {
+      if (scene.frame === 150) {
+        scene.use('invade_wave_move_type')
+      }
+
+      if (viper.life <= 0) {
+        scene.use('gameover')
+      }
+    })
+
+    scene.add('invade_wave_move_type', time => {
+      if (scene.frame % 50 === 0) {
+        for (let i = 0; i < ENEMY_SMALL_MAX_COUNT; ++i) {
+          if (enemyArray[i].life <= 0) {
+            let e = enemyArray[i]
+
+            if (scene.frame <= 200) {
+              e.set(CANVAS_WIDTH * 0.2, -e.height, 2, 'wave')
+            } else {
+              e.set(CANVAS_WIDTH * 0.8, -e.height, 2, 'wave')
+            }
+
+            break
+          }
+        }
+      }
+
+      if (scene.frame === 450) {
+        scene.use('invade_large_type')
+      }
+
+      if (viper.life <= 0) {
+        scene.use('gameover')
+      }
+    })
+
+    scene.add('invade_large_type', time => {
       if (scene.frame === 100) {
-        scene.use('invade')
+        let i = ENEMY_SMALL_MAX_COUNT + ENEMY_LARGE_MAX_COUNT
+
+        for (let j = ENEMY_SMALL_MAX_COUNT; j < i; ++j) {
+          if (enemyArray[j].life <= 0) {
+            let e = enemyArray[j]
+            e.set(CANVAS_WIDTH / 2, -e.height, 50, 'large')
+            break
+          }
+        }
+      }
+
+      if (scene.frame === 500) {
+        scene.use('intro')
+      }
+
+      if (viper.life <= 0) {
+        scene.use('gameover')
+      }
+    })
+
+    scene.add('gameover', time => {
+      let textWidth = CANVAS_WIDTH / 2
+      let loopWidth = CANVAS_WIDTH + textWidth
+      let x = CANVAS_WIDTH - (scene.frame * 2) % loopWidth
+
+      ctx.font = 'bold 72px sans-serif'
+      util.drawText('GAME OVER', x, CANVAS_HEIGHT / 2, '#f00', textWidth)
+
+      if (restart === true) {
+        restart = false
+        gameScore = 0
+        viper.setComing(
+          CANVAS_WIDTH / 2,
+          CANVAS_HEIGHT + 50,
+          CANVAS_WIDTH / 2,
+          CANVAS_HEIGHT - 100,
+        )
+
+        scene.use('intro')
       }
     })
 
@@ -148,6 +257,9 @@
     ctx.globalAlpha = 1.0
     util.drawRect(0, 0, canvas.width, canvas.height, '#eee')
     let nowTime = (Date.now() - startTime) / 1000
+
+    ctx.font = 'bold 24px monospace'
+    util.drawText(zeroPadding(gameScore, 5), 30, 50, '#111')
 
     scene.update()
     viper.update()
@@ -170,7 +282,13 @@
     requestAnimationFrame(render)
   }
 
-  function generateRandomInt() {
+  function degreesToRadians(degrees) {
+    return degrees * Math.PI / 180
+  }
 
+  function zeroPadding(number, count) {
+    let zeroArray = new Array(count)
+    let zeroString = zeroArray.join('0') + number
+    return zeroString.slice(-count)
   }
 })()

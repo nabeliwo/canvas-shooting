@@ -1,4 +1,13 @@
 class Position {
+  static calcLength(x, y) {
+    return Math.sqrt(x * x + y * y)
+  }
+
+  static calcNormal(x, y) {
+    let len = Position.calcLength(x, y)
+    return new Position(x / len, y / len)
+  }
+
   constructor(x, y) {
     this.x = null
     this.y = null
@@ -83,7 +92,7 @@ class Character {
 
 class Viper extends Character {
   constructor(ctx, x, y, w, h, image) {
-    super(ctx, x, y, w, h, 0, image)
+    super(ctx, x, y, w, h, 1, image)
 
     this.speed = 3
     this.shotCheckCounter = 0
@@ -97,6 +106,7 @@ class Viper extends Character {
   }
 
   setComing(startX, startY, endX, endY) {
+    this.life = 1
     this.isComing = true
     this.comingStart = Date.now()
     this.position.set(startX, startY)
@@ -110,6 +120,8 @@ class Viper extends Character {
   }
 
   update() {
+    if (this.life <= 0) return
+
     let justTime = Date.now()
 
     if (this.isComing === true) {
@@ -191,6 +203,7 @@ class Enemy extends Character {
     this.frame = 0;
     this.speed = 3;
     this.shotArray = null;
+    this.attackTarget = null
   }
 
   set(x, y, life = 1, type = 'default') {
@@ -204,12 +217,54 @@ class Enemy extends Character {
     this.shotArray = shotArray
   }
 
+  setAttackTarget(target) {
+    this.attackTarget = target
+  }
+
   update() {
     if (this.life <= 0) return
 
     switch (this.type) {
+      case 'wave':
+        if (this.frame % 60 === 0) {
+          let tx = this.attackTarget.position.x - this.position.x
+          let ty = this.attackTarget.position.y - this.position.y
+          let tv = Position.calcNormal(tx, ty)
+          this.fire(tv.x, tv.y, 4.0)
+        }
+
+        this.position.x += Math.sin(this.frame / 10)
+        this.position.y += 2.0
+
+        if (this.position.y - this.height > this.ctx.canvas.height) {
+          this.life = 0
+        }
+
+        break
+
+      case 'large':
+        if (this.frame % 50 === 0) {
+          for (let i = 0; i < 360; i += 45) {
+            let r = i * Math.PI / 180
+            let s = Math.sin(r)
+            let c = Math.cos(r)
+            this.fire(c, s, 3.0)
+          }
+        }
+
+        this.position.x += Math.sin((this.frame + 90) / 50) * 2.0
+        this.position.y += 1.0
+
+        if (this.position.y - this.height > this.ctx.canvas.height) {
+          this.life = 0
+        }
+
+
+        break
+
       case 'default':
-        if (this.frame === 50) this.fire()
+      default:
+        if (this.frame === 100) this.fire()
 
         this.position.x += this.vector.x * this.speed
         this.position.y += this.vector.y * this.speed
@@ -225,11 +280,11 @@ class Enemy extends Character {
     ++this.frame
   }
 
-  fire(x = 0.0, y = 1.0) {
+  fire(x = 0.0, y = 1.0, speed = 5.0) {
     for (let i = 0; i < this.shotArray.length; ++i) {
       if (this.shotArray[i].life <= 0) {
         this.shotArray[i].set(this.position.x, this.position.y)
-        this.shotArray[i].setSpeed(5.0)
+        this.shotArray[i].setSpeed(speed)
         this.shotArray[i].setVector(x, y)
         break
       }
@@ -278,7 +333,12 @@ class Shot extends Character {
 
   update() {
     if (this.life <= 0) return
-    if (this.position.y + this.height < 0 || this.position.y - this.height > this.ctx.canvas.height) {
+    if (
+      this.position.x + this.width < 0 ||
+      this.position.x - this.width > this.ctx.canvas.width ||
+      this.position.y + this.height < 0 ||
+      this.position.y - this.height > this.ctx.canvas.height
+    ) {
       this.life = 0
     }
 
@@ -291,6 +351,10 @@ class Shot extends Character {
       let dist = this.position.distance(v.position)
 
       if (dist <= (this.width + v.width) / 4) {
+        if (v instanceof Viper === true) {
+          if (v.isComing === true) return
+        }
+
         v.life -= this.power
 
         if (v.life <= 0) {
@@ -299,6 +363,16 @@ class Shot extends Character {
               this.explosionArray[i].set(v.position.x, v.position.y)
               break
             }
+          }
+
+          if (v instanceof Enemy === true) {
+            let score = 100
+
+            if (v.type === 'large') {
+              score = 1000
+            }
+
+            gameScore = Math.min(gameScore + score, 99999)
           }
         }
 

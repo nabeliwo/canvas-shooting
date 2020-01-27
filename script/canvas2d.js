@@ -1,7 +1,7 @@
 class Canvas2DUtility {
   constructor(canvas) {
     this.canvasElement = canvas
-    this.context2D = canvas.getContext('2d')
+    this.context2d = canvas.getContext('2d')
   }
 
   get canvas() {
@@ -9,7 +9,7 @@ class Canvas2DUtility {
   }
 
   get context() {
-    return this.context2D
+    return this.context2d
   }
 
   imageLoader(path, callback) {
@@ -26,9 +26,17 @@ class Canvas2DUtility {
 
   drawRect(x, y, width, height, color) {
     if (color != null) {
-      this.context2D.fillStyle = color
+      this.context2d.fillStyle = color
     }
 
-    this.context2D.fillRect(x, y, width, height)
+    this.context2d.fillRect(x, y, width, height)
+  }
+
+  drawText(text, x, y, color, width) {
+    if (color != null) {
+      this.context2d.fillStyle = color
+    }
+
+    this.context2d.fillText(text, x, y, width)
   }
 }
