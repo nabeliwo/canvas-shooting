@@ -8,6 +8,7 @@
   const ENEMY_LARGE_MAX_COUNT = 5
   const SHOT_MAX_COUNT = 10
   const ENEMY_SHOT_MAX_COUNT = 50
+  const HOMING_MAX_COUNT = 50
   const EXPLOSION_MAX_COUNT = 10
   const BACKGROUND_STAR_MAX_COUNT = 100
   const BACKGROUND_STAR_MAX_SIZE = 3
@@ -20,33 +21,51 @@
   let image = null
   let startTime = null
   let viper = null
+  let boss = null
   let enemyArray = []
   let shotArray = []
   let singleShotArray = []
   let enemyShotArray = []
+  let homingArray = []
   let explosionArray = []
   let backgroundStarArray = []
   let restart = false
+  let sound = null
 
   window.addEventListener('load', () => {
     util = new Canvas2DUtility(document.body.querySelector('#canvas'))
     canvas = util.canvas
     ctx = util.context
 
-    initialize()
-    loadCheck()
+    canvas.width = CANVAS_WIDTH
+    canvas.height = CANVAS_HEIGHT
+
+    let button = document.body.querySelector('#start_button')
+
+    button.addEventListener('click', () => {
+      button.disabled = true
+      sound = new Sound()
+
+      sound.load('./sound/explosion.mp3', error => {
+        if (error != null) {
+          alert('ファイルの読み込みエラーです')
+          return
+        }
+
+        initialize()
+        loadCheck()
+      })
+    })
   })
 
   function initialize() {
     let i
 
-    canvas.width = CANVAS_WIDTH
-    canvas.height = CANVAS_HEIGHT
-
     scene = new SceneManager()
 
     for (i = 0; i < EXPLOSION_MAX_COUNT; ++i) {
       explosionArray[i] = new Explosion(ctx, 100.0, 15, 40.0, 1.0)
+      explosionArray[i].setSound(sound)
     }
 
     for (i = 0; i < SHOT_MAX_COUNT; ++i) {
@@ -73,6 +92,17 @@
       enemyShotArray[i].setExplosions(explosionArray)
     }
 
+    for (i = 0; i < HOMING_MAX_COUNT; ++i) {
+      homingArray[i] = new Homing(ctx, 0, 0, 32, 32, './image/homing_shot.png')
+      homingArray[i].setTargets([viper])
+      homingArray[i].setExplosions(explosionArray)
+    }
+
+    boss = new Boss(ctx, 0, 0, 128, 128, './image/boss.png');
+    boss.setShotArray(enemyShotArray);
+    boss.setHomingArray(homingArray);
+    boss.setAttackTarget(viper);
+
     for (i = 0; i < ENEMY_SMALL_MAX_COUNT; ++i) {
       enemyArray[i] = new Enemy(ctx, 0, 0, 48, 48, './image/enemy_small.png')
       enemyArray[i].setShotArray(enemyShotArray)
@@ -85,10 +115,15 @@
       enemyArray[ENEMY_SMALL_MAX_COUNT + i].setAttackTarget(viper)
     }
 
+    let concatEnemyArray = enemyArray.concat([boss]);
+
     for (i = 0; i < SHOT_MAX_COUNT; ++i) {
-      shotArray[i].setTargets(enemyArray)
-      singleShotArray[i * 2].setTargets(enemyArray)
-      singleShotArray[i * 2 + 1].setTargets(enemyArray)
+      shotArray[i].setTargets(concatEnemyArray);
+      singleShotArray[i * 2].setTargets(concatEnemyArray);
+      singleShotArray[i * 2 + 1].setTargets(concatEnemyArray);
+      shotArray[i].setExplosions(explosionArray);
+      singleShotArray[i * 2].setExplosions(explosionArray);
+      singleShotArray[i * 2 + 1].setExplosions(explosionArray);
     }
 
     for (i = 0; i < BACKGROUND_STAR_MAX_COUNT; ++i) {
@@ -114,6 +149,10 @@
 
     shotArray.map(v => {
       ready = ready && v.ready
+    })
+
+    homingArray.map((v) => {
+      ready = ready && v.ready;
     })
 
     singleShotArray.map(v => {
@@ -234,14 +273,30 @@
         }
       }
 
-      if (scene.frame === 500) {
-        scene.use('intro')
+      if(scene.frame === 500){
+        scene.use('invade_boss');
       }
 
       if (viper.life <= 0) {
         scene.use('gameover')
       }
     })
+
+    scene.add('invade_boss', time => {
+      if (scene.frame === 0) {
+        boss.set(CANVAS_WIDTH / 2, -boss.height, 250)
+        boss.setMode('invade')
+      }
+
+      if (viper.life <= 0) {
+        scene.use('gameover')
+        boss.setMode('escape')
+      }
+
+      if (boss.life <= 0) {
+        scene.use('intro')
+      }
+  })
 
     scene.add('gameover', time => {
       let textWidth = CANVAS_WIDTH / 2
@@ -274,10 +329,11 @@
     let nowTime = (Date.now() - startTime) / 1000
 
     ctx.font = 'bold 24px monospace'
-    util.drawText(zeroPadding(gameScore, 5), 30, 50, '#111')
+    util.drawText(zeroPadding(gameScore, 5), 30, 50, '#fff')
 
     scene.update()
     viper.update()
+    boss.update()
     enemyArray.map(v => {
       v.update()
     })
@@ -288,6 +344,9 @@
       v.update()
     })
     enemyShotArray.map(v => {
+      v.update()
+    })
+    homingArray.map(v => {
       v.update()
     })
     explosionArray.map(v => {
