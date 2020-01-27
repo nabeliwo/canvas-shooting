@@ -667,6 +667,45 @@ class Homing extends Shot {
 
     this.position.x += this.vector.x * this.speed
     this.position.y += this.vector.y * this.speed
+    this.angle = Math.atan2(this.vector.y, this.vector.x)
+
+    this.targetArray.map(v => {
+      i f(this.life <= 0 || v.life <= 0) return
+
+      let dist = this.position.distance(v.position)
+
+      if (dist <= (this.width + v.width) / 4) {
+        if (v instanceof Viper === true) {
+          if (v.isComing === true) return
+        }
+
+        v.life -= this.power
+
+        if (v.life <= 0) {
+          for(let i = 0; i < this.explosionArray.length; ++i) {
+            if (this.explosionArray[i].life !== true) {
+              this.explosionArray[i].set(v.position.x, v.position.y)
+              break
+            }
+          }
+
+          if (v instanceof Enemy === true) {
+            let score = 100
+
+            if (v.type === 'large') {
+              score = 1000
+            }
+
+            gameScore = Math.min(gameScore + score, 99999)
+          }
+        }
+
+        this.life = 0;
+      }
+    })
+
+    this.rotationDraw()
+    ++this.frame;
   }
 }
 
