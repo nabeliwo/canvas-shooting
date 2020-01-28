@@ -522,22 +522,22 @@ class Boss extends Character {
     this.attackTarget = null
   }
 
-  set(x, y, life = 1){
-    this.position.set(x, y);
-    this.life = life;
-    this.frame = 0;
+  set(x, y, life = 1) {
+    this.position.set(x, y)
+    this.life = life
+    this.frame = 0
   }
 
   setShotArray(shotArray){
-    this.shotArray = shotArray;
+    this.shotArray = shotArray
   }
 
   setHomingArray(homingArray){
-    this.homingArray = homingArray;
+    this.homingArray = homingArray
   }
 
-  setAttackTarget(target){
-    this.attackTarget = target;
+  setAttackTarget(target) {
+    this.attackTarget = target
   }
 
   setMode(mode) {
@@ -561,7 +561,7 @@ class Boss extends Character {
 
       case 'escape':
         this.position.y -= this.speed
-        
+
         if (this.position.y < -this.height) {
           this.life = 0
         }
@@ -594,23 +594,23 @@ class Boss extends Character {
     ++this.frame
   }
 
-  fire(x = 0.0, y = 1.0, speed = 5.0){
-    for(let i = 0; i < this.shotArray.length; ++i){
-      if(this.shotArray[i].life <= 0){
+  fire(x = 0.0, y = 1.0, speed = 5.0) {
+    for(let i = 0; i < this.shotArray.length; ++i) {
+      if (this.shotArray[i].life <= 0) {
         this.shotArray[i].set(this.position.x, this.position.y)
         this.shotArray[i].setSpeed(speed)
         this.shotArray[i].setVector(x, y)
-        break;
+        break
       }
     }
   }
 
-  homingFire(x = 0.0, y = 1.0, speed = 3.0){
-    for(let i = 0; i < this.homingArray.length; ++i){
-      if(this.homingArray[i].life <= 0){
-        this.homingArray[i].set(this.position.x, this.position.y);
-        this.homingArray[i].setSpeed(speed);
-        this.homingArray[i].setVector(x, y);
+  homingFire(x = 0.0, y = 1.0, speed = 3.0) {
+    for (let i = 0; i < this.homingArray.length; ++i) {
+      if (this.homingArray[i].life <= 0) {
+        this.homingArray[i].set(this.position.x, this.position.y)
+        this.homingArray[i].setSpeed(speed)
+        this.homingArray[i].setVector(x, y)
         break;
       }
     }
@@ -670,7 +670,7 @@ class Homing extends Shot {
     this.angle = Math.atan2(this.vector.y, this.vector.x)
 
     this.targetArray.map(v => {
-      i f(this.life <= 0 || v.life <= 0) return
+      if (this.life <= 0 || v.life <= 0) return
 
       let dist = this.position.distance(v.position)
 
